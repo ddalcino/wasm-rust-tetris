@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Rust-tris: a tetris written in Rust</title>
+</head>
+<body>
+<div id="top_row">
+    <button id="reset" title="New Game">New Game</button>
+    <span id="score_label">Score:</span> <span id="score">0</span>
+    <button id="pause_play" title="Pause/Play"></button>
+</div>
+<canvas id="game_board" width="200" height="400"></canvas>
+<div id="buttons">
+    <button id="rotate_left" title="Rotate Left: spacebar">&#x21ba;</button>
+    <button id="move_left" title="Move Left: left arrow key">&larr;</button>
+    <button id="move_down" title="Move Down: down arrow key">&darr;</button>
+    <button id="move_right" title="Move Right: right arrow key">&rarr;</button>
+    <button id="rotate_right" title="Rotate Right: up arrow key">&#x21bb;</button>
+</div>
+<script src="./bootstrap.js"></script>
+</body>
+</html>
