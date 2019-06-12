@@ -532,7 +532,6 @@ impl Game {
     }
     // TODO: refactor this to the controller!
     pub fn update(&mut self, ms_delta_time: u32) -> UpdateResult {
-        (self.logger)("Game::update");
         if self.time_controller.update(ms_delta_time) {
             (self.logger)("Game::update inputs down");
             return match self.input(Action::Down) {

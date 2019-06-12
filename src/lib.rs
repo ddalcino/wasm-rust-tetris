@@ -5,7 +5,7 @@ mod tetris;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use std::f64;
-use std::cmp::min;
+use std::cmp::{min, max};
 
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -36,13 +36,61 @@ impl Color {
     }
 }
 
+struct ColorFamily {
+    normal: Color,
+    bright: Color,
+    dark: Color,
+    highlight: Color,
+    shadow: Color,
+}
+
+enum ColorType {
+    Normal,
+    Bright,
+    Dark,
+    Highlight,
+    Shadow,
+}
+
+impl ColorFamily {
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> ColorFamily {
+        let positive_u32 = |val: i32| -> u32 { max(val, 0i32) as u32 };
+//        let multiplier = |mul: f64| -> Fn(u8) -> u8{
+//            |val: u8| -> u8 { min(positive_u32((val as f64 * mul) as i32), 255) as u8 }
+//        };
+//        let adder = |add_me: i32| -> Fn(u8) -> u8{
+//            |val: u8| -> u8 { min(positive_u32(val as i32 + add_me), 255) as u8 }
+//        };
+        let brighter = |val: u8| -> u8 { min(positive_u32(val as i32 + 25), 255) as u8 };
+        let highlighter = |val: u8| -> u8 { min(positive_u32(val as i32 + 50), 255) as u8 };
+        let darker = |val: u8| -> u8 { min(positive_u32(val as i32 - 25), 255) as u8 };
+        let shadower = |val: u8| -> u8 { min(positive_u32(val as i32 - 50), 255) as u8 };
+        ColorFamily {
+            normal: Color::from_rgb(r, g, b),
+            bright: Color::from_rgb(brighter(r), brighter(g), brighter(b)),
+            dark: Color::from_rgb(darker(r), darker(g), darker(b)),
+            highlight: Color::from_rgb(highlighter(r), highlighter(g), highlighter(b)),
+            shadow: Color::from_rgb(shadower(r), shadower(g), shadower(b)),
+        }
+    }
+    pub fn get(&self, color_type: ColorType) -> &Color {
+        match color_type {
+            ColorType::Normal => &self.normal,
+            ColorType::Bright => &self.bright,
+            ColorType::Dark => &self.dark,
+            ColorType::Highlight => &self.highlight,
+            ColorType::Shadow => &self.shadow,
+        }
+    }
+}
+
 
 pub struct View {
     canvas: web_sys::HtmlCanvasElement,
     ctx: web_sys::CanvasRenderingContext2d,
     tile_size: u32,
     score_field: web_sys::Element,
-    colors: Vec<Color>,
+    colors: Vec<ColorFamily>,
 }
 
 impl View {
@@ -68,34 +116,71 @@ impl View {
             tile_size: 20,
             score_field,
             colors: vec!(
-                Color::from_rgb(64, 64, 64), // bkg
-                Color::from_rgb(220, 40, 20),
-                Color::from_rgb(220, 128, 20),
-                Color::from_rgb(64, 220, 64),
-                Color::from_rgb(64, 92, 220),
-                Color::from_rgb(128, 220, 40),
-                Color::from_rgb(0, 220, 220),
-                Color::from_rgb(220, 0, 220),
-                Color::from_rgb(0, 0, 0),   // black border
+                ColorFamily::from_rgb(64, 64, 64), // bkg
+                ColorFamily::from_rgb(192, 40, 20),
+                ColorFamily::from_rgb(192, 128, 20),
+                ColorFamily::from_rgb(64, 192, 64),
+                ColorFamily::from_rgb(64, 92, 192),
+                ColorFamily::from_rgb(198, 192, 40),
+                ColorFamily::from_rgb(0, 192, 192),
+                ColorFamily::from_rgb(192, 0, 192),
+                ColorFamily::from_rgb(0, 0, 0),   // black border
             ),
         }
     }
 
-    fn background(&self) -> &Color { &self.colors[0] }
-    fn border(&self) -> &Color { &self.colors[8] }
+    fn background(&self) -> &Color { &self.colors[0].get(ColorType::Normal) }
+    fn border(&self) -> &Color { &self.colors[8].get(ColorType::Normal) }
 
     fn set_score(&mut self, score: u32) {
         self.score_field.set_text_content(Some(&format!("{}", score)));
     }
 
-    fn draw_tile(&self, x: u32, y: u32, color: &Color) {
-        self.ctx.set_fill_style(&color.to_jsvalue());
+    fn draw_shaded_tile(&self, x: u32, y: u32, highlight: &Color, shadow: &Color, fill: &Color) {
+        let top = (y * self.tile_size) as f64;
+        let bottom = top + self.tile_size as f64;
+        let left = (x * self.tile_size) as f64;
+        let right = left + self.tile_size as f64;
+        let offset = self.tile_size as f64 / 6.0;
+        let fill_size = self.tile_size as f64 * 4.0 / 6.0;
+
+        self.ctx.begin_path();
+        self.ctx.set_fill_style(&highlight.to_jsvalue());
         self.ctx.fill_rect(
             (x * self.tile_size) as f64,
             (y * self.tile_size) as f64,
             self.tile_size as f64,
             self.tile_size as f64,
         );
+
+        self.ctx.begin_path();
+        self.ctx.set_fill_style(&shadow.to_jsvalue());
+        self.ctx.move_to(left, top);
+        self.ctx.line_to(left, bottom);
+        self.ctx.line_to(right, bottom);
+        self.ctx.fill();
+
+        self.ctx.begin_path();
+        self.ctx.set_fill_style(&fill.to_jsvalue());
+        self.ctx.fill_rect(
+            (x * self.tile_size) as f64 + offset,
+            (y * self.tile_size) as f64 + offset,
+            fill_size,
+            fill_size,
+        );
+    }
+
+    fn draw_bright_tile(&self, x: u32, y: u32, color: &ColorFamily) {
+        let highlight = color.get(ColorType::Highlight);
+        let shadow = color.get(ColorType::Normal);
+        let fill = color.get(ColorType::Bright);
+        self.draw_shaded_tile(x, y, highlight, shadow, fill);
+    }
+    fn draw_dark_tile(&self, x: u32, y: u32, color: &ColorFamily) {
+        let highlight = color.get(ColorType::Normal);
+        let shadow = color.get(ColorType::Shadow);
+        let fill = color.get(ColorType::Dark);
+        self.draw_shaded_tile(x, y, highlight, shadow, fill);
     }
 
     fn clear(&self) {
@@ -136,8 +221,15 @@ impl View {
 
         for row in 0..rows {
             for col in 0..cols {
-                let color = self.choose_color(board[row as usize][col as usize]);
-                self.draw_tile(col + 1, row, color);
+                let color_id = board[row as usize][col as usize];
+                match color_id {
+                    0 => {},
+                    _ => {
+                        let color = self.choose_color(color_id);
+                        self.draw_dark_tile(col + 1, row, color);
+                    }
+                };
+
             }
         }
 
@@ -147,7 +239,7 @@ impl View {
                 if piece.at_relative_row_col(row, col) {
                     let row = row as u32 + piece.row as u32;
                     let col = col as u32 + piece.col as u32;
-                    self.draw_tile((col + 1) as u32, row as u32, color);
+                    self.draw_bright_tile((col + 1) as u32, row as u32, color);
                 }
             }
         }
@@ -168,7 +260,7 @@ impl View {
                            self.tile_size as f64);
     }
 
-    fn choose_color(&self, color_id: u8) -> &Color { &self.colors[color_id as usize] }
+    fn choose_color(&self, color_id: u8) -> &ColorFamily { &self.colors[color_id as usize] }
 }
 
 #[wasm_bindgen(start)]
@@ -181,7 +273,7 @@ pub struct Controller {
 #[wasm_bindgen(start)]
 impl Controller {
     fn new(document: &web_sys::Document, mut view: View, game: tetris::Game) -> Controller {
-        let pause_btn = document.get_element_by_id("pause_play").unwrap();
+//        let pause_btn = document.get_element_by_id("pause_play").unwrap();
 
         view.resize(game.get_board_height(), game.get_board_width());
 
@@ -205,7 +297,6 @@ impl Controller {
     }
     // return true if game over
     pub fn update(&mut self, ms_delta_time: u32) -> bool {
-        log!("Controller::update");
         use tetris::UpdateResult;
         match self.game.update(ms_delta_time) {
             UpdateResult::NewScore(score) => {
@@ -267,11 +358,7 @@ impl Controller {
 
             _ => Action::None
         };
-        let new_score = self.game.input(action);
-        log!("Pressed key {}, new score is {:?}", code, new_score);
-
-//        match self.game.input(action) {
-        match new_score {
+        match self.game.input(action) {
             Some(new_score) => self.view.set_score(new_score),
             None => ()
         };
@@ -307,11 +394,11 @@ fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
 
-fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    window()
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .expect("should register `requestAnimationFrame` OK");
-}
+//fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+//    window()
+//        .request_animation_frame(f.as_ref().unchecked_ref())
+//        .expect("should register `requestAnimationFrame` OK");
+//}
 
 fn document() -> web_sys::Document {
     window()

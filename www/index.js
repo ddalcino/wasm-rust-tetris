@@ -1,13 +1,10 @@
 // import('../pkg/wasm_rust_tris')
 //     .catch(console.error);
 
-console.log('line1');
 import * as wasm from "wasm-rust-tris";
 
-console.log('line2');
 
 const tetrisGame = wasm.Controller.make();
-console.log('made controller');
 
 // import {View} from "wasm-rust-tris";
 //
@@ -35,7 +32,6 @@ const isPaused = () => {
     return animationId === null;
 };
 const renderLoop = () => {
-    console.log('renderLoop');
     let ms_time_delta = 20;
     isGameOver = tetrisGame.update(ms_time_delta);
     tetrisGame.render();
@@ -64,12 +60,11 @@ const play = () => {
 };
 
 const pause = () => {
+    console.log('pause');
     pauseBtn.textContent = "\u25b6";
     cancelAnimationFrame(animationId);
     animationId = null;
 };
-
-console.log('before event listeners');
 
 
 document.addEventListener('keypress', (event) => {
@@ -85,23 +80,21 @@ document.addEventListener('keypress', (event) => {
     }
 });
 
-//
-//
-// document.getElementById("rotate_left").addEventListener("click", event => {
-//
-// });
-// document.getElementById("rotate_right").addEventListener("click", event => {
-//
-// });
-// document.getElementById("move_left").addEventListener("click", event => {
-//
-// });
-// document.getElementById("move_right").addEventListener("click", event => {
-//
-// });
-// document.getElementById("move down").addEventListener("click", event => {
-//
-// });
+const buttonToKeyCode = new Map([
+    ["rotate_left", "KeyQ"],
+    ["rotate_right", "KeyE"],
+    ["move_left", "KeyA"],
+    ["move_right", "KeyD"],
+    ["move_down", "KeyS"],
+]);
+
+buttonToKeyCode.forEach((keyCode, buttonId) => {
+    console.log(buttonId, keyCode);
+    document.getElementById(buttonId).addEventListener("click", () => {
+        tetrisGame.press_key(keyCode);
+    });
+});
+
 document.getElementById("reset").addEventListener("click", () => {
     tetrisGame.reset();
     isGameOver = false;
