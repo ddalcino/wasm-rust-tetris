@@ -6,17 +6,10 @@ import * as wasm from "wasm-rust-tris";
 
 const tetrisGame = wasm.Controller.make();
 
-// import {View} from "wasm-rust-tris";
-//
-// wasm.greet();
-//
-// // Resize canvas to fit all cells and a 1 px border around each.
-// const canvas = document.getElementById("game_board");
-// const ctx = canvas.getContext('2d');
-//
-// // const tetrisGame = tetrisGame.new();
-// const view = View.new();  // pass in ctx
-//
+window.onresize = () => {
+    tetrisGame.resize();
+};
+
 const pauseBtn = document.getElementById("pause_play");
 pauseBtn.onclick = () => {
     if (isPaused()) {

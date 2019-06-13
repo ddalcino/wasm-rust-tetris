@@ -54,23 +54,32 @@ enum ColorType {
 
 impl ColorFamily {
     pub fn from_rgb(r: u8, g: u8, b: u8) -> ColorFamily {
-        let positive_u32 = |val: i32| -> u32 { max(val, 0i32) as u32 };
-//        let multiplier = |mul: f64| -> Fn(u8) -> u8{
-//            |val: u8| -> u8 { min(positive_u32((val as f64 * mul) as i32), 255) as u8 }
-//        };
-//        let adder = |add_me: i32| -> Fn(u8) -> u8{
-//            |val: u8| -> u8 { min(positive_u32(val as i32 + add_me), 255) as u8 }
-//        };
-        let brighter = |val: u8| -> u8 { min(positive_u32(val as i32 + 25), 255) as u8 };
-        let highlighter = |val: u8| -> u8 { min(positive_u32(val as i32 + 50), 255) as u8 };
-        let darker = |val: u8| -> u8 { min(positive_u32(val as i32 - 25), 255) as u8 };
-        let shadower = |val: u8| -> u8 { min(positive_u32(val as i32 - 50), 255) as u8 };
+        let constrain_u8 = |val: i32| -> u8 {
+            min(max(val, 0i32) as u32, 255u32) as u8
+        };
+
+        #[allow(unused_macros)]
+        macro_rules! adder {
+            ($to_add:expr) => {
+                |val: u8| -> u8 { constrain_u8(val as i32 + $to_add) }
+            }
+        }
+        #[allow(unused_macros)]
+        macro_rules! multiplier {
+            ($to_mul:expr) => {
+                |val: u8| -> u8 { constrain_u8(val as i32 * $to_mul) }
+            }
+        }
+        let bright = adder!(25);
+        let highlight = adder!(50);
+        let dark = adder!(-25);
+        let shadow = adder!(-50);
         ColorFamily {
             normal: Color::from_rgb(r, g, b),
-            bright: Color::from_rgb(brighter(r), brighter(g), brighter(b)),
-            dark: Color::from_rgb(darker(r), darker(g), darker(b)),
-            highlight: Color::from_rgb(highlighter(r), highlighter(g), highlighter(b)),
-            shadow: Color::from_rgb(shadower(r), shadower(g), shadower(b)),
+            bright: Color::from_rgb(bright(r), bright(g), bright(b)),
+            dark: Color::from_rgb(dark(r), dark(g), dark(b)),
+            highlight: Color::from_rgb(highlight(r), highlight(g), highlight(b)),
+            shadow: Color::from_rgb(shadow(r), shadow(g), shadow(b)),
         }
     }
     pub fn get(&self, color_type: ColorType) -> &Color {
@@ -94,7 +103,8 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(document: &web_sys::Document) -> View {
+    pub fn new() -> View {
+        let document = document();
         let canvas = document.get_element_by_id("game_board").unwrap();
         let canvas: web_sys::HtmlCanvasElement = canvas
             .dyn_into::<web_sys::HtmlCanvasElement>()
@@ -194,15 +204,13 @@ impl View {
     }
 
     pub fn resize(&mut self, rows: u32, cols: u32) {
-        let v_button_margin = 100u32;
-        let h_button_margin = 0u32;
+        let v_button_margin = 110u32;
+        let h_button_margin = 80u32;
         let width = window().inner_width().unwrap().as_f64().unwrap();
         let width = width as u32 - h_button_margin;
         let height = window().inner_height().unwrap().as_f64().unwrap();
         let height = height as u32 - v_button_margin;
 
-//        let height = self.canvas.height();
-//        let width = self.canvas.width();
         let h_scale = width / (cols + 2);
         let v_scale = height / (rows + 1);
         self.tile_size = min(h_scale, v_scale);
@@ -223,13 +231,12 @@ impl View {
             for col in 0..cols {
                 let color_id = board[row as usize][col as usize];
                 match color_id {
-                    0 => {},
+                    0 => {}
                     _ => {
                         let color = self.choose_color(color_id);
                         self.draw_dark_tile(col + 1, row, color);
                     }
                 };
-
             }
         }
 
@@ -249,11 +256,14 @@ impl View {
 
     pub fn draw_border(&self, rows: u32, cols: u32) {
         self.ctx.set_fill_style(&self.border().to_jsvalue());
+        // left border
         self.ctx.fill_rect(0.0, 0.0, self.tile_size as f64,
                            (rows * self.tile_size) as f64);
+        // bottom border
         self.ctx.fill_rect(((cols + 1) * self.tile_size) as f64, 0.0,
                            self.tile_size as f64,
                            (rows * self.tile_size) as f64);
+        // right border
         self.ctx.fill_rect(0.0,
                            (rows * self.tile_size) as f64,
                            ((cols + 2) * self.tile_size) as f64,
@@ -267,29 +277,24 @@ impl View {
 pub struct Controller {
     view: View,
     game: tetris::Game,
-//    animation_id: Option<i32>,
 }
 
 #[wasm_bindgen(start)]
 impl Controller {
-    fn new(document: &web_sys::Document, mut view: View, game: tetris::Game) -> Controller {
-//        let pause_btn = document.get_element_by_id("pause_play").unwrap();
-
+    fn new(mut view: View, game: tetris::Game) -> Controller {
         view.resize(game.get_board_height(), game.get_board_width());
 
         Controller {
             view,
             game,
-//            animation_id: None,
         }
     }
     pub fn make() -> Controller {
-        let document = document();
-        let view = View::new(&document);
+        let view = View::new();
         let logger: Box<Fn(&str)> = Box::new(|line| { log!("{}", line); });
         let game = tetris::Game::new(10, 20, logger);
         log!("make controller");
-        Controller::new(&document, view, game)
+        Controller::new(view, game)
     }
 
     pub fn render(&self) {
@@ -311,6 +316,11 @@ impl Controller {
     pub fn reset(&mut self) {
         self.game.clear();
         self.render();
+    }
+
+    pub fn resize(&mut self) {
+        self.view.resize(self.game.get_board_height(),
+                         self.game.get_board_width());
     }
 
     // Returns true if we need to pause
@@ -365,65 +375,13 @@ impl Controller {
         action == Action::Pause
     }
 }
-//
-//pub fn run_render_loop(mut controller: &Controller) -> Result<(), JsValue> {
-//    let f = Rc::new(RefCell::new(None));
-//    let g = f.clone();
-//
-//    let mut time = js_sys::Date::now();
-////    let time = time.get_milliseconds();
-//
-//    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-//        let new_time = js_sys::Date::now();
-//        log!("{}", new_time);
-////        let new_time = new_time.get_milliseconds();
-//        let time_delta = (new_time - time) as u32;
-//        time = new_time;
-//        controller.update(time_delta);
-//        controller.render();
-//
-//        // Schedule ourself for another requestAnimationFrame callback.
-//        request_animation_frame(f.borrow().as_ref().unwrap());
-//    }) as Box<FnMut()>));
-//
-//    request_animation_frame(g.borrow().as_ref().unwrap());
-//    Ok(())
-//}
 
 fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
-
-//fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-//    window()
-//        .request_animation_frame(f.as_ref().unchecked_ref())
-//        .expect("should register `requestAnimationFrame` OK");
-//}
 
 fn document() -> web_sys::Document {
     window()
         .document()
         .expect("should have a document on window")
 }
-
-//
-//fn body() -> web_sys::HtmlElement {
-//    document().body().expect("document should have a body")
-//}
-#[wasm_bindgen(inline_js = "export function rand_int(max) { Math.floor(Math.random() * max); }")]
-extern "C" {
-    fn rand_int(max: u32) -> u32;
-}
-
-
-//#[wasm_bindgen(start)]
-//pub fn start() {
-//    log!("hello");
-//    // make a view, make a controller, make a tetris game, connect them all
-//    let document = web_sys::window().unwrap().document().unwrap();
-//    let view = View::new(&document);
-//    log!("make game");
-//    let game = tetris::Game::new(10, 20);
-//    log!("make controller");
-//    let mut controller = Controller::new(&document, view, game);
-//}
