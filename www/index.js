@@ -1,81 +1,95 @@
 // import('../pkg/wasm_rust_tris')
 //     .catch(console.error);
-
+'use strict';
 import * as wasm from "wasm-rust-tris";
 
 
+// Global State
 const tetrisGame = wasm.Controller.make();
-
-window.onresize = () => {
-    tetrisGame.resize();
-};
-
-const pauseBtn = document.getElementById("pause_play");
-pauseBtn.onclick = () => {
-    if (isPaused()) {
-        play();
-    } else {
-        pause();
-    }
-};
-//
+let lastTime = Date.now();
 let animationId = null;
 let isGameOver = false;
+const PAUSE_CODE = "PAUSE";
+
+
 const isPaused = () => {
     return animationId === null;
 };
-
-let lastTime = Date.now();
 
 const renderLoop = () => {
     const newTime = Date.now();
     const ms_time_delta = newTime - lastTime;
     lastTime = newTime;
 
-    pollGamepads(ms_time_delta);
+    if (pollGamepads(ms_time_delta) === PAUSE_CODE) {
+        togglePause();
+        return;
+    }
     isGameOver = tetrisGame.update(ms_time_delta);
     tetrisGame.render();
 
     if (!isGameOver) {
-        // debugger;
         animationId = requestAnimationFrame(renderLoop);
     } else {
         console.log("Game Over!!!");
-        pause();
+        pauseBtn.textContent = "\u25b6";
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        }
     }
 };
 
-const play = () => {
-    console.log('play');
-    if (isGameOver) {
-        tetrisGame.reset();
-        isGameOver = false;
+const retTrue = () => { return true; };
+
+window.onresize = () => {
+    tetrisGame.resize();
+};
+
+const pauseBtn = document.getElementById("pause_play");
+
+const newGame = () => {
+    tetrisGame.reset();
+    isGameOver = false;
+    lastTime = Date.now();
+    // force paused condition, if not already present
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
     }
-    tetrisGame.render();
+    // start the game running again
+    togglePause();
+};
+
+const togglePause = () => {
+    console.log('togglePause');
+    if (isGameOver) {
+        newGame();
+        return;
+    }
     if (isPaused()) {
-        // debugger;
+        console.log('play');
         pauseBtn.textContent = '\u23f8';
         animationId = requestAnimationFrame(renderLoop);
+    } else {
+        console.log('pause');
+        pauseBtn.textContent = "\u25b6";
+        cancelAnimationFrame(animationId);
+        animationId = null;
     }
 };
 
-const pause = () => {
-    console.log('pause');
-    pauseBtn.textContent = "\u25b6";
-    cancelAnimationFrame(animationId);
-    animationId = null;
-};
-
+pauseBtn.onclick = () => { togglePause(); };
 
 document.addEventListener('keypress', (event) => {
     if (isPaused()) {
         if (event.code === "Escape") {
-            play();
+            togglePause();
         }
-    } else if (!isGameOver) {
+    } else if (!isGameOver && !isPaused()) {
         const shouldPause = tetrisGame.press_key(event.code);
         if (shouldPause) {
-            pause();
+            togglePause();
         }
     }
 });
@@ -94,8 +108,8 @@ const gamepadButtonToKeyCode = new Map([
     [14, "KeyA"],
     [15, "KeyD"],
     [13, "KeyS"],
-    [8, "PAUSE"],
-    [9, "PAUSE"],
+    [8, PAUSE_CODE],
+    [9, PAUSE_CODE],
 ]);
 
 
@@ -107,50 +121,59 @@ buttonToKeyCode.forEach((keyCode, buttonId) => {
 });
 
 document.getElementById("reset").addEventListener("click", () => {
-    tetrisGame.reset();
-    isGameOver = false;
-    play();
+    newGame();
 });
 
 
-function buttonPressed(b) {
+// Gamepad handling:
+const buttonPressed = (b) => {
     if (typeof (b) == "object") {
         return b.pressed;
     }
     return b === 1.0;
-}
+};
 
+// Global gamepad handling state
 let buttonTimeouts = Array.apply(null, Array(17)).map(() => {
     return 0;
 });
 
-const TIMES_PER_SECOND_CAN_FIRE_BUTTON = 25.0;
-const BUTTON_TIMEOUT_MS = 1000.0 / TIMES_PER_SECOND_CAN_FIRE_BUTTON;
+const TIMES_PER_SECOND_CAN_MOVE = 30.0;
+const TIMES_PER_SECOND_CAN_ROTATE = 10.0;
+const MOVEMENT_BUTTON_TIMEOUT_MS = 1000.0 / TIMES_PER_SECOND_CAN_MOVE;
+const ROTATE_BUTTON_TIMEOUT_MS = 1000.0 / TIMES_PER_SECOND_CAN_ROTATE;
+const PAUSE_BUTTON_TIMEOUT_MS = 1000.0;
 
-function pollGamepads(timeDeltaMs) {
+const pollGamepads = (timeDeltaMs) => {
     const gamepads = navigator.getGamepads ? navigator.getGamepads()
         : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
     if (!gamepads) {
-        return;
+        return null;
     }
 
     const gp = gamepads[0];
     if (!gp) {
-        return;
+        return null;
     }
-    gamepadButtonToKeyCode.forEach((keyCode, index) => {
+
+    for (let [index, keyCode] of gamepadButtonToKeyCode.entries()) {
         if (buttonTimeouts[index] > 0) {
             buttonTimeouts[index] -= timeDeltaMs;
         } else if (buttonPressed(gp.buttons[index])) {
-            if (keyCode === "PAUSE") {
-                togglePause();
+            if (keyCode === PAUSE_CODE) {
+                return PAUSE_CODE;
             } else {
                 tetrisGame.press_key(keyCode);
+                if (keyCode === "KeyQ" || keyCode === "KeyE") {
+                    buttonTimeouts[index] = ROTATE_BUTTON_TIMEOUT_MS;
+                } else {
+                    buttonTimeouts[index] = MOVEMENT_BUTTON_TIMEOUT_MS;
+                }
             }
-            buttonTimeouts[index] = BUTTON_TIMEOUT_MS;
         }
-    });
-}
+    }
+    return null;
+};
 
-
-play();
+// Start game running
+togglePause();
