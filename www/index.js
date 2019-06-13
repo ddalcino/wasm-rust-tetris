@@ -33,22 +33,15 @@ const isPaused = () => {
 };
 
 let lastTime = Date.now();
-const threshold = Math.floor(1000.0 / 60.0);
-
-const calcMsTimeDelta = () => {
-    const newTime = Date.now();
-    return newTime - lastTime;
-};
 
 const renderLoop = () => {
-    const ms_time_delta = calcMsTimeDelta();
-    if (ms_time_delta > threshold) {
-        lastTime += ms_time_delta;
-        console.log("time_delta is " + ms_time_delta);
-        pollGamepads();
-        isGameOver = tetrisGame.update(ms_time_delta);
-        tetrisGame.render();
-    }
+    const newTime = Date.now();
+    const ms_time_delta = newTime - lastTime;
+    lastTime = newTime;
+
+    pollGamepads(ms_time_delta);
+    isGameOver = tetrisGame.update(ms_time_delta);
+    tetrisGame.render();
 
     if (!isGameOver) {
         // debugger;
@@ -108,9 +101,9 @@ const gamepadButtonToKeyCode = new Map([
     [14, "KeyA"],
     [15, "KeyD"],
     [13, "KeyS"],
+    [8, "PAUSE"],
+    [9, "PAUSE"],
 ]);
-
-// 8 & 9 for pause
 
 
 buttonToKeyCode.forEach((keyCode, buttonId) => {
@@ -126,38 +119,6 @@ document.getElementById("reset").addEventListener("click", () => {
     play();
 });
 
-// var gamepads = [];
-//
-// function gamepadHandler(event, connecting) {
-//     var gamepad = event.gamepad;
-//     console.log(gamepad);
-//     // Note:
-//     // gamepad === navigator.getGamepads()[gamepad.index]
-//
-//     if (connecting) {
-//         console.log("gamepad connected");
-//         gamepads[gamepad.index] = gamepad;
-//     } else {
-//         console.log("gamepad disconnected");
-//         delete gamepads[gamepad.index];
-//     }
-// }
-//
-// window.addEventListener("gamepadconnected", function (e) {
-//     gamepadHandler(e, true);
-// }, false);
-// window.addEventListener("gamepaddisconnected", function (e) {
-//     gamepadHandler(e, false);
-// }, false);
-
-//
-// let interval = null;
-//
-// if (!('ongamepadconnected' in window)) {
-//     // No gamepad events available, poll instead.
-//     interval = setInterval(pollGamepads, 500);
-// }
-//
 
 function buttonPressed(b) {
     if (typeof (b) == "object") {
@@ -166,12 +127,16 @@ function buttonPressed(b) {
     return b === 1.0;
 }
 
-let gamepadRemembory = Array.apply(null, Array(17)).map(() => {
-    return false
+let buttonTimeouts = Array.apply(null, Array(17)).map(() => {
+    return 0;
 });
 
-function pollGamepads() {
-    const gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
+const TIMES_PER_SECOND_CAN_FIRE_BUTTON = 25.0;
+const BUTTON_TIMEOUT_MS = 1000.0 / TIMES_PER_SECOND_CAN_FIRE_BUTTON;
+
+function pollGamepads(timeDeltaMs) {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads()
+        : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads : []);
     if (!gamepads) {
         return;
     }
@@ -180,44 +145,19 @@ function pollGamepads() {
     if (!gp) {
         return;
     }
-    if (buttonPressed(gp.buttons[8]) || buttonPressed(gp.buttons[9])) {
-        pause();
-        // if (isPaused()) { play(); } else { pause(); }
-    }
     gamepadButtonToKeyCode.forEach((keyCode, index) => {
-        if (gamepadRemembory[index]) {
-            gamepadRemembory[index] = false;
+        if (buttonTimeouts[index] > 0) {
+            buttonTimeouts[index] -= timeDeltaMs;
         } else if (buttonPressed(gp.buttons[index])) {
-            tetrisGame.press_key(keyCode);
-            gamepadRemembory[index] = true;
+            if (keyCode === "PAUSE") {
+                togglePause();
+            } else {
+                tetrisGame.press_key(keyCode);
+            }
+            buttonTimeouts[index] = BUTTON_TIMEOUT_MS;
         }
     });
-    console.log("Button 0 is " + buttonPressed(gp.buttons[0]));
 }
-
-
-// gamepads.forEach((gamepad, index) => {
-// if (gamepad) {
-//     // console.log(index);
-//     // console.log(gamepad);
-//     gamepad.buttons.forEach((button, index) => {
-//         if (button.pressed) console.log("Press button " + index);
-//     });
-//     // gamepad.axes.forEach((value, index) => {
-//     //     if (value) console.log("Axis " + index + " has value " + value);
-//     // });
-// }
-// });
-
-// for (let i = 0; i < gamepads.length; i++) {
-//     const gp = gamepads[i];
-//     if (gp) {
-//         gamepadInfo.innerHTML = "Gamepad connected at index " + gp.index + ": " + gp.id +
-//             ". It has " + gp.buttons.length + " buttons and " + gp.axes.length + " axes.";
-//         gameLoop();
-//         clearInterval(interval);
-//     }
-// }
 
 
 play();
