@@ -1,8 +1,8 @@
 // import('../pkg/wasm_rust_tris')
 //     .catch(console.error);
-'use strict';
 import * as wasm from "./wasm_rust_tris";
 
+'use strict';
 
 // Global State
 const tetrisGame = wasm.Controller.make();
