@@ -1,6 +1,6 @@
 // import('../pkg/wasm_rust_tris')
 //     .catch(console.error);
-import * as wasm from "./wasm_rust_tris";
+import * as wasm from "./wasm_rust_tris.js";
 
 'use strict';
 
