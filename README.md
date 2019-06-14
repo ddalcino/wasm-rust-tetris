@@ -2,7 +2,8 @@
 
 An implementation of Tetris, written primarily in Rust, targeting WebAssembly.
 
-You may play a running instance of this project at [Github](https://ddalcino.github.io/wasm-rust-tetris/www/index.html).
+You may play a running instance of this project at 
+[Github](https://ddalcino.github.io/wasm-rust-tetris/dist/index.html).
 
 
 ### Building and running
