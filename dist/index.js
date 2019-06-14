@@ -1,7 +1,7 @@
 // import('../pkg/wasm_rust_tris')
 //     .catch(console.error);
 'use strict';
-import * as wasm from "wasm_rust_tris";
+import * as wasm from "./wasm_rust_tris";
 
 
 // Global State
