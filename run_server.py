@@ -40,15 +40,17 @@ if __name__ == "__main__":
     current_working_dir = os.path.dirname(os.path.realpath(__file__))
     www_dir = os.path.join(current_working_dir, "www")
     print(www_dir)
-    skip_rebuild, release_flag = False, []
+    skip_rebuild, append_flags = False, []
     if "--skip-rebuild" in sys.argv:
         skip_rebuild = True
     if "--release" in sys.argv:
         print("add release flag")
-        release_flag = ["--release"]
+        append_flags += ["--release"]
+    if "--web" in sys.argv:
+        append_flags += ["--target", "web"]
 
     if not skip_rebuild:
-        run_cmd(["wasm-pack", "build"] + release_flag)
+        run_cmd(["wasm-pack", "build"] + append_flags)
         run_cmd(["npm", "install"], working_dir=www_dir)
     server_ps = run_cmd(["npm", "run", "start"], working_dir=www_dir, is_block=False)
     webbrowser.open("http://localhost:8080")
