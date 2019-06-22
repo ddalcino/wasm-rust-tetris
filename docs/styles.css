@@ -1,0 +1,94 @@
+body {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: turquoise;
+    background-color: #000;
+    margin: 0;
+}
+
+button {
+    vertical-align: middle;
+    min-height: 40px;
+    min-width: 40px;
+    text-align: center;
+    font-family: 'Press Start 2P', cursive;
+    color: turquoise;
+    background-color: #080820;
+    border-color: turquoise;
+}
+
+span {
+    font-family: 'Press Start 2P', cursive;
+}
+
+.h_flex-container {
+    display: flex;
+    flex-direction: row;
+    align-content: stretch;
+    flex-wrap: nowrap;
+}
+
+.h_flex-container > div {
+    flex: 1;
+    align-content: stretch;
+}
+
+.h_flex-container > button {
+    flex: 1;
+    align-content: stretch;
+    text-align: center;
+}
+
+.h_flex-container > span {
+    flex: 1;
+    align-content: center;
+    justify-content: center;
+    text-align: center;
+    align-self: center;
+}
+
+.v_flex-container {
+    display: flex;
+    flex-direction: column;
+    align-content: stretch;
+    flex-wrap: nowrap;
+}
+
+.v_flex-container > button {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+#middle_row.grid-container {
+    display: grid;
+    align-content: center;
+    justify-content: center;
+    grid-template-columns: auto auto auto;
+    grid-gap: 10px;
+    padding: 10px;
+}
+
+#middle_row.grid-container > div {
+
+}
+
+/*#middle_row > button {*/
+/*    height: 100%;*/
+/*}*/
+/*#bottom_row > button {*/
+/*    width: 100%;*/
+/*}*/
+/*.canvas_div {*/
+/*    grid-row-start: 1;*/
+/*    grid-row-end: 3;*/
+/*    grid-column: 2;*/
+/*}*/
