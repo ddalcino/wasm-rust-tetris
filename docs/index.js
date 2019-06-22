@@ -178,7 +178,7 @@ const pollGamepads = (timeDeltaMs) => {
 
 async function run() {
     console.log("Before init!");
-    await init(); //'./wasm_rust_tris_bg.wasm');
+    await init('./wasm_rust_tris_bg.wasm');
     console.log("Init is done!");
 
     tetrisGame = Controller.make();
